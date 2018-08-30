@@ -27,6 +27,7 @@ import { WorkspacePreferenceProvider } from './workspace-preference-provider';
 import { FileSystem } from '@theia/filesystem/lib/common';
 import { UserStorageService } from '@theia/userstorage/lib/browser';
 import { PreferencesContainer } from './preferences-tree-widget';
+import URI from '@theia/core/lib/common/uri';
 
 export const PREFERENCES_COMMAND: Command = {
     id: 'preferences:open',
@@ -64,28 +65,20 @@ export class PreferencesContribution extends AbstractViewContribution<Preference
     }
 
     protected async openPreferences(): Promise<void> {
-        const userUri = this.userPreferenceProvider.getUri();
-        const content = await this.userStorageService.readContents(userUri);
-        if (content === '') {
-            await this.userStorageService.saveContents(userUri, this.getPreferenceTemplateForScope('user'));
-        }
+        await this.createFileIfNotExists(this.userPreferenceProvider.getUri());
 
         const wsUri = await this.workspacePreferenceProvider.getUri();
         if (!wsUri) {
             return;
         }
-        if (!(await this.filesystem.exists(wsUri.toString()))) {
-            await this.filesystem.createFile(wsUri.toString(), { content: this.getPreferenceTemplateForScope('workspace') });
-        }
+        await this.createFileIfNotExists(wsUri);
 
         super.openView({ activate: true });
     }
 
-    private getPreferenceTemplateForScope(scope: string): string {
-        return `/*
-Preference file for ${scope} scope
-
-Please refer to the documentation online (https://github.com/theia-ide/theia/blob/master/packages/preferences/README.md) to learn how preferences work in Theia
-*/`;
+    private async createFileIfNotExists(uri: URI) {
+        if (!(await this.filesystem.exists(uri.toString()))) {
+            await this.filesystem.createFile(uri.toString());
+        }
     }
 }
