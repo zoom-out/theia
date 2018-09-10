@@ -23,6 +23,7 @@ import { ILogger } from '../../common/logger';
 import { CommandContribution, CommandRegistry } from '../../common/command';
 import { ApplicationShell } from './application-shell';
 import { ThemeService } from '../theming';
+import { getCycles, getDups } from './circular';
 
 /**
  * A contract for widgets that want to store and restore their inner state, between sessions.
@@ -80,7 +81,13 @@ export class ShellLayoutRestorer implements CommandContribution {
         if (this.shouldStoreLayout) {
             try {
                 const layoutData = app.shell.getLayoutData();
+
+                console.log('cycles: ', getCycles(layoutData));
+                console.log('duplicates: ', getDups(layoutData));
+
+                // this line crashes when stringifying the layout data
                 const serializedLayoutData = this.deflate(layoutData);
+
                 this.storageService.setData(this.storageKey, serializedLayoutData);
             } catch (error) {
                 this.storageService.setData(this.storageKey, undefined);
