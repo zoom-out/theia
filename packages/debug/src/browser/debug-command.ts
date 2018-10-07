@@ -426,7 +426,7 @@ export class DebugCommandHandlers implements MenuContribution, CommandContributi
         }
 
         const selection = this.debugSelectionHandler.get(debugSession.sessionId);
-        return !!selection && !!selection.thread && !!debugSession.state.stoppedThreadIds.has(selection.thread.id);
+        return !!selection && !!selection.thread && !!debugSession.state.threadIds.get(selection.thread.id);
     }
 
     private isSelectedThreadResumed(): boolean {
@@ -436,7 +436,7 @@ export class DebugCommandHandlers implements MenuContribution, CommandContributi
         }
 
         const selection = this.debugSelectionHandler.get(debugSession.sessionId);
-        return !!selection && !!selection.thread && !debugSession.state.stoppedThreadIds.has(selection.thread.id);
+        return !!selection && !!selection.thread && !debugSession.state.threadIds.get(selection.thread.id);
     }
 
     private getSelectedThreadId(sessionId: string): number | undefined {
