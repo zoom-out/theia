@@ -3,6 +3,7 @@
   "version": "0.3.15",
   "description": "Theia - Editorconfig Extension",
   "dependencies": {
+    "@theia/languages": "^0.3.15",
     "@theia/core": "^0.3.15",
     "@theia/editor": "^0.3.15",
     "@theia/monaco": "^0.3.15",
@@ -14,12 +15,10 @@
   "keywords": [
     "theia-extension"
   ],
-  "theiaExtensions": [
-    {
-      "frontend": "lib/browser/editorconfig-frontend-module",
-      "backend": "lib/node/editorconfig-backend-module"
-    }
-  ],
+  "theiaExtensions": [{
+    "frontend": "lib/browser/editorconfig-frontend-module",
+    "backend": "lib/node/editorconfig-backend-module"
+  }],
   "license": "EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0",
   "repository": {
     "type": "git",

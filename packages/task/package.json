@@ -4,6 +4,7 @@
   "description": "Theia - Task extension. This extension adds support for executing raw or terminal processes in the backend.",
   "dependencies": {
     "@theia/core": "^0.3.15",
+    "@theia/filesystem": "^0.3.15",
     "@theia/markers": "^0.3.15",
     "@theia/process": "^0.3.15",
     "@theia/terminal": "^0.3.15",
@@ -14,12 +15,10 @@
   "publishConfig": {
     "access": "public"
   },
-  "theiaExtensions": [
-    {
-      "frontend": "lib/browser/task-frontend-module",
-      "backend": "lib/node/task-backend-module"
-    }
-  ],
+  "theiaExtensions": [{
+    "frontend": "lib/browser/task-frontend-module",
+    "backend": "lib/node/task-backend-module"
+  }],
   "keywords": [
     "theia-extension"
   ],

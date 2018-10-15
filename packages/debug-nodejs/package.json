@@ -3,6 +3,7 @@
   "version": "0.3.15",
   "description": "Theia - NodeJS Debug Extension",
   "dependencies": {
+    "@theia/core": "^0.3.15",
     "@theia/debug": "^0.3.15",
     "ps-list": "5.0.1",
     "vscode-debugprotocol": "^1.26.0",
@@ -11,11 +12,9 @@
   "publishConfig": {
     "access": "public"
   },
-  "theiaExtensions": [
-    {
-      "backend": "lib/node/debug-nodejs-backend-module"
-    }
-  ],
+  "theiaExtensions": [{
+    "backend": "lib/node/debug-nodejs-backend-module"
+  }],
   "keywords": [
     "theia-extension, debug, nodejs"
   ],

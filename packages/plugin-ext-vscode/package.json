@@ -3,16 +3,15 @@
   "version": "0.3.15",
   "description": "Theia - Plugin Extension for VsCode",
   "dependencies": {
+    "@theia/plugin": "^0.3.15",
     "@theia/plugin-ext": "^0.3.15"
   },
   "publishConfig": {
     "access": "public"
   },
-  "theiaExtensions": [
-    {
-      "backend": "lib/node/plugin-vscode-backend-module"
-    }
-  ],
+  "theiaExtensions": [{
+    "backend": "lib/node/plugin-vscode-backend-module"
+  }],
   "keywords": [
     "theia-extension"
   ],

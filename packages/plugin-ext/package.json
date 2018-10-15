@@ -6,11 +6,14 @@
   "typings": "lib/common/index.d.ts",
   "dependencies": {
     "@theia/core": "^0.3.15",
+    "@theia/debug": "^0.3.15",
     "@theia/editor": "^0.3.15",
     "@theia/filesystem": "^0.3.15",
     "@theia/monaco": "^0.3.15",
     "@theia/navigator": "^0.3.15",
     "@theia/plugin": "^0.3.15",
+    "@theia/output": "^0.3.15",
+    "@theia/terminal": "^0.3.15",
     "@theia/workspace": "^0.3.15",
     "@theia/debug-nodejs": "^0.3.15",
     "decompress": "^4.2.0",
@@ -21,13 +24,11 @@
   "publishConfig": {
     "access": "public"
   },
-  "theiaExtensions": [
-    {
-      "backend": "lib/plugin-ext-backend-module",
-      "backendElectron": "lib/plugin-ext-backend-electron-module",
-      "frontend": "lib/plugin-ext-frontend-module"
-    }
-  ],
+  "theiaExtensions": [{
+    "backend": "lib/plugin-ext-backend-module",
+    "backendElectron": "lib/plugin-ext-backend-electron-module",
+    "frontend": "lib/plugin-ext-frontend-module"
+  }],
   "keywords": [
     "theia-extension"
   ],
