@@ -1,6 +1,7 @@
 {
   "defaultSeverity": "error",
   "rules": {
+    "no-missing-theia-dependencies": true,
     "arrow-parens": {
       "options": [
         true,
