@@ -16,6 +16,7 @@
 - [callhierarchy][typescript] adapt to hierarchical document symbols
 - [output] Add button to clear output view
 - [debug] decouple debug model from UI + clean up
+- [core] `ctrl+alt+a` and `ctrl+alt+d` to switch tabs left/right
 
 
 ## v0.3.15
