@@ -31,6 +31,7 @@ import { TabBarRendererFactory, TabBarRenderer, SHELL_TABBAR_CONTEXT_MENU, Scrol
 import { SplitPositionHandler, SplitPositionOptions } from './split-panels';
 import { FrontendApplicationStateService } from '../frontend-application-state';
 import { TabBarToolbarRegistry, TabBarToolbarFactory, TabBarToolbar } from './tab-bar-toolbar';
+import { QuickPickService, QuickPickItem } from '../quick-open';
 import { WidgetTracker } from '../widgets';
 
 /** The class name added to ApplicationShell instances. */
@@ -158,6 +159,9 @@ export class ApplicationShell extends Widget implements WidgetTracker {
 
     private readonly tracker = new FocusTracker<Widget>();
     private dragState?: WidgetDragState;
+
+    @inject(QuickPickService)
+    protected quickPick: QuickPickService;
 
     /**
      * Construct a new application shell.
@@ -634,7 +638,7 @@ export class ApplicationShell extends Widget implements WidgetTracker {
      *
      * Widgets added to the top area are not tracked regarding the _current_ and _active_ states.
      */
-    addWidget(widget: Widget, options: ApplicationShell.WidgetOptions) {
+    addWidget(widget: Widget, options: ApplicationShell.WidgetOptions): void {
         if (!widget.id) {
             console.error('Widgets added to the application shell must have a unique id property.');
             return;
@@ -1135,10 +1139,35 @@ export class ApplicationShell extends Widget implements WidgetTracker {
         return [...this.mainAreaTabBars, ...this.bottomAreaTabBars, this.leftPanelHandler.tabBar, this.rightPanelHandler.tabBar];
     }
 
-    /*
-     * Activate the next tab in the current tab bar.
+    /**
+     * Return the previous tab in the current tab bar.
      */
-    activateNextTab(): void {
+    previousTab(): TabBar<Widget> | undefined {
+        const current = this.currentTabBar;
+        if (current) {
+            const ci = current.currentIndex;
+            if (ci !== -1) {
+                if (ci > 0) {
+                    current.currentIndex -= 1;
+                    if (current.currentTitle) {
+                        return current;
+                    }
+                } else if (ci === 0) {
+                    const prevBar = this.previousTabBar(current);
+                    const len = prevBar.titles.length;
+                    prevBar.currentIndex = len - 1;
+                    if (prevBar.currentTitle) {
+                        return prevBar;
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Return the next tab in the current tab bar.
+     */
+    nextTab(): TabBar<Widget> | undefined {
         const current = this.currentTabBar;
         if (current) {
             const ci = current.currentIndex;
@@ -1146,16 +1175,26 @@ export class ApplicationShell extends Widget implements WidgetTracker {
                 if (ci < current.titles.length - 1) {
                     current.currentIndex += 1;
                     if (current.currentTitle) {
-                        current.currentTitle.owner.activate();
+                        return current;
                     }
                 } else if (ci === current.titles.length - 1) {
                     const nextBar = this.nextTabBar(current);
                     nextBar.currentIndex = 0;
                     if (nextBar.currentTitle) {
-                        nextBar.currentTitle.owner.activate();
+                        return nextBar;
                     }
                 }
             }
+        }
+    }
+
+    /*
+     * Activate the next tab in the current tab bar.
+     */
+    activateNextTab(): void {
+        const next = this.nextTab();
+        if (next) {
+            next.currentTitle!.owner.activate();
         }
     }
 
@@ -1184,24 +1223,9 @@ export class ApplicationShell extends Widget implements WidgetTracker {
      * Activate the previous tab in the current tab bar.
      */
     activatePreviousTab(): void {
-        const current = this.currentTabBar;
-        if (current) {
-            const ci = current.currentIndex;
-            if (ci !== -1) {
-                if (ci > 0) {
-                    current.currentIndex -= 1;
-                    if (current.currentTitle) {
-                        current.currentTitle.owner.activate();
-                    }
-                } else if (ci === 0) {
-                    const prevBar = this.previousTabBar(current);
-                    const len = prevBar.titles.length;
-                    prevBar.currentIndex = len - 1;
-                    if (prevBar.currentTitle) {
-                        prevBar.currentTitle.owner.activate();
-                    }
-                }
-            }
+        const previous = this.previousTab();
+        if (previous) {
+            previous.currentTitle!.owner.activate();
         }
     }
 
@@ -1254,6 +1278,31 @@ export class ApplicationShell extends Widget implements WidgetTracker {
      */
     get widgets(): ReadonlyArray<Widget> {
         return [...this.tracker.widgets];
+    }
+
+    /**
+     * Prompts a QuickOpen menu to pick a widget from.
+     *
+     * @param area Area to get widgets from
+     */
+    async pickWidget(sorting: ((a: Widget, b: Widget) => number) | boolean = true): Promise<Widget | undefined> {
+        const widgets = Array.from(this.widgets);
+        if (sorting === true) {
+            sorting = this.defaultPickWidgetsSort.bind(this);
+        }
+        if (typeof sorting === 'function') {
+            widgets.sort(sorting);
+        }
+        return this.quickPick.show(widgets.map(widget => <QuickPickItem<Widget>>{
+            iconClass: widget.title.iconClass,
+            label: widget.title.caption,
+            value: widget,
+        }));
+    }
+
+    protected defaultPickWidgetsSort(a: Widget, b: Widget): number {
+        return `${a.title.owner.constructor.name}:${a.title.caption}`.localeCompare(
+            `${b.title.owner.constructor.name}:${b.title.caption}`);
     }
 
 }
