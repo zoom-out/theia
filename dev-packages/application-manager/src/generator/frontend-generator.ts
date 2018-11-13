@@ -106,10 +106,11 @@ const { isMaster } = require('cluster');
 const { fork } = require('child_process');
 const { app, BrowserWindow, ipcMain } = require('electron');
 
+const applicationName = \`${this.pck.props.frontend.config.applicationName}\`;
 const windows = [];
 
 function createNewWindow(theUrl) {
-    const newWindow = new BrowserWindow({ width: 1024, height: 728, show: !!theUrl });
+    const newWindow = new BrowserWindow({ width: 1024, height: 728, show: !!theUrl, title: applicationName });
     if (windows.length === 0) {
         newWindow.webContents.on('new-window', (event, url, frameName, disposition, options) => {
             // If the first electron window isn't visible, then all other new windows will remain invisible.
@@ -117,6 +118,7 @@ function createNewWindow(theUrl) {
             options.show = true;
             options.width = 1024;
             options.height = 728;
+            options.title = applicationName;
         });
     }
     windows.push(newWindow);

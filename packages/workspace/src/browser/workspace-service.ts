@@ -27,6 +27,7 @@ import { ILogger, Disposable, DisposableCollection, Emitter, Event } from '@thei
 import { WorkspacePreferences } from './workspace-preferences';
 import * as jsoncparser from 'jsonc-parser';
 import * as Ajv from 'ajv';
+import { FrontendApplicationConfigProvider } from '@theia/core/lib/browser/frontend-application-config-provider';
 
 export const THEIA_EXT = 'theia-workspace';
 export const VSCODE_EXT = 'code-workspace';
@@ -68,11 +69,10 @@ export class WorkspaceService implements FrontendApplicationContribution {
     @inject(ApplicationServer)
     protected application: ApplicationServer;
 
-    protected applicationName: Promise<string>;
+    protected applicationName = FrontendApplicationConfigProvider.get().applicationName;
 
     @postConstruct()
     protected async init(): Promise<void> {
-        this.applicationName = this.application.getApplicationProps().then(props => props.applicationName);
         const workspaceUri = await this.server.getMostRecentlyUsedWorkspace();
         const workspaceFileStat = await this.toFileStat(workspaceUri);
         await this.setWorkspace(workspaceFileStat);
@@ -176,7 +176,7 @@ export class WorkspaceService implements FrontendApplicationContribution {
     }
 
     protected async formatTitle(title?: string): Promise<string> {
-        const name = await this.applicationName;
+        const name = this.applicationName;
         return title ? `${title} - ${name}` : name;
     }
 

@@ -14,8 +14,6 @@
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
 
-import { ApplicationProps } from '@theia/application-package';
-
 export const applicationPath = '/services/application';
 
 export const ApplicationServer = Symbol('ApplicationServer');
@@ -23,15 +21,14 @@ export const ApplicationServer = Symbol('ApplicationServer');
 export interface ApplicationServer {
     getExtensionsInfos(): Promise<ExtensionInfo[]>;
     getApplicationInfo(): Promise<ApplicationInfo | undefined>;
-    getApplicationProps(): Promise<ApplicationProps>;
 }
 
 export interface ExtensionInfo {
-    name: string;
-    version: string;
+    readonly name: string;
+    readonly version: string;
 }
 
 export interface ApplicationInfo {
-    name: string;
-    version: string;
+    readonly name: string;
+    readonly version: string;
 }
