@@ -47,6 +47,10 @@
     "no-return-await": {
       "severity": "warning",
       "options": true
+    },
+    "no-void-expression": {
+      "severity": "warning",
+      "options": [true, "ignore-arrow-function-shorthand"]
     }
   }
 }
