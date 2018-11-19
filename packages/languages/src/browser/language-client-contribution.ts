@@ -17,9 +17,9 @@
 // tslint:disable:no-any
 
 import { injectable, inject } from 'inversify';
-import { MessageService, CommandRegistry } from '@theia/core';
+import { MaybePromise, MessageService, CommandRegistry } from '@theia/core';
 import { Disposable, DisposableCollection } from '@theia/core/lib/common';
-import { FrontendApplication, WebSocketConnectionProvider, WebSocketOptions } from '@theia/core/lib/browser';
+import { FrontendApplication, WebSocketConnectionProvider } from '@theia/core/lib/browser';
 import {
     LanguageContribution, ILanguageClient, LanguageClientOptions,
     DocumentSelector, TextDocument, FileSystemWatcher,
@@ -54,6 +54,7 @@ export abstract class BaseLanguageClientContribution implements LanguageClientCo
     @inject(MessageService) protected readonly messageService: MessageService;
     @inject(CommandRegistry) protected readonly registry: CommandRegistry;
     @inject(WorkspaceService) protected readonly workspaceService: WorkspaceService;
+    @inject(LanguageContribution.Service) protected readonly languageContributionService: LanguageContribution.Service;
     @inject(WebSocketConnectionProvider) protected readonly connectionProvider: WebSocketConnectionProvider;
 
     constructor(
@@ -97,47 +98,78 @@ export abstract class BaseLanguageClientContribution implements LanguageClientCo
     }
 
     protected readonly toDeactivate = new DisposableCollection();
+    protected activating = false;
     activate(): Disposable {
-        if (this.toDeactivate.disposed) {
-            this.doActivate(this.toDeactivate);
+        if (!this.activating && this.toDeactivate.disposed) {
+            this.activating = true;
+            this.doStart().then(
+                toStop => {
+                    this.activating = false;
+                    this.toDeactivate.push(toStop);
+                },
+                e => {
+                    this.activating = false;
+                    console.error(e);
+                }
+            );
         }
         return this.toDeactivate;
     }
     deactivate(): void {
         this.toDeactivate.dispose();
     }
-    protected doActivate(toDeactivate: DisposableCollection): void {
-        const options: WebSocketOptions = {};
-        toDeactivate.push(Disposable.create(() => options.reconnecting = false));
+
+    protected stop = Promise.resolve();
+    protected async doStart(): Promise<Disposable> {
+        const toStop = new DisposableCollection(
+            Disposable.NULL // mark as not disposed
+        );
+        // make sure that the previous client is stopped to avoid duplicate commands and language services
+        await this.stop;
+        const startParameters = await this.getStartParameters();
+        const sessionId = await this.languageContributionService.create(this.id, startParameters);
+        if (toStop.disposed) {
+            this.languageContributionService.destroy(sessionId);
+            return toStop;
+        }
+        toStop.push(Disposable.create(() => this.languageContributionService.destroy(sessionId)));
         this.connectionProvider.listen({
-            path: LanguageContribution.getPath(this),
+            path: LanguageContribution.getPath(this, sessionId),
             onConnection: messageConnection => {
-                if (toDeactivate.disposed) {
+                if (toStop.disposed) {
                     messageConnection.dispose();
                     return;
                 }
                 const languageClient = this.createLanguageClient(messageConnection);
-                this.onWillStart(languageClient);
-                toDeactivate.pushAll([
-                    messageConnection,
-                    this.toRestart.push(Disposable.create(async () => {
+                toStop.push(Disposable.create(() => this.stop = (async () => {
+                    try {
+                        // avoid calling stop if start failed
                         await languageClient.onReady();
-                        languageClient.stop();
-                    })),
-                    languageClient.start()
-                ]);
+                        // remove all listerens and close the connection under the hood
+                        await languageClient.stop();
+                    } catch {
+                        try {
+                            // if start or stop failed make sure the the connection is closed
+                            messageConnection.dispose();
+                        } catch { /* no-op */ }
+                    }
+                })()));
+                toStop.push(messageConnection.onClose(() => this.restart()));
+                this.onWillStart(languageClient);
+                languageClient.start();
             }
-        }, options);
+        }, { reconnecting: false });
+        return toStop;
     }
 
     protected state: State | undefined;
     get running(): boolean {
-        return !this.toDeactivate.disposed && this.state === State.Running;
+        return !this.activating && !this.toDeactivate.disposed && this.state === State.Running;
     }
 
-    protected readonly toRestart = new DisposableCollection();
     restart(): void {
-        this.toRestart.dispose();
+        this.deactivate();
+        this.activate();
     }
 
     protected onWillStart(languageClient: ILanguageClient): void {
@@ -183,6 +215,10 @@ export abstract class BaseLanguageClientContribution implements LanguageClientCo
             }
         });
         return false;
+    }
+
+    protected getStartParameters(): MaybePromise<any> {
+        return undefined;
     }
 
     // tslint:disable-next-line:no-any
