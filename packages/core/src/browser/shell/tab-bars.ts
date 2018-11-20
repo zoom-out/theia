@@ -24,7 +24,6 @@ import { Message } from '@phosphor/messaging';
 import { ArrayExt } from '@phosphor/algorithm';
 import { ElementExt } from '@phosphor/domutils';
 import { TabBarToolbarRegistry, TabBarToolbar } from './tab-bar-toolbar';
-import { WidgetTracker } from '../widgets';
 
 /** The class name added to hidden content nodes, which are required to render vertical side bars. */
 const HIDDEN_CONTENT_CLASS = 'theia-TabBar-hidden-content';
@@ -301,7 +300,6 @@ export class ToolbarAwareTabBar extends ScrollableTabBar {
 
     constructor(
         protected readonly tabBarToolbarRegistry: TabBarToolbarRegistry,
-        protected readonly widgetTracker: WidgetTracker,
         protected readonly tabBarToolbarFactory: () => TabBarToolbar,
         protected readonly options?: TabBar.IOptions<Widget> & PerfectScrollbar.Options) {
 
@@ -327,38 +325,7 @@ export class ToolbarAwareTabBar extends ScrollableTabBar {
         return this.node.getElementsByClassName(ToolbarAwareTabBar.Styles.TAB_BAR_CONTENT_CONTAINER)[0] as HTMLElement;
     }
 
-    // -----------------------------------------------------------------------------------------------------+
-    // Overridden to be able to update the toolbar when the tabs come and go. Does not change the behavior. |
-    // -----------------------------------------------------------------------------------------------------+
-
-    addTab(value: Title<Widget> | Title.IOptions<Widget>): Title<Widget> {
-        const result = super.addTab(value);
-        this.updateToolbar();
-        return result;
-    }
-
-    insertTab(index: number, value: Title<Widget> | Title.IOptions<Widget>): Title<Widget> {
-        const result = super.insertTab(index, value);
-        this.updateToolbar();
-        return result;
-    }
-
-    removeTab(title: Title<Widget>): void {
-        super.removeTab(title);
-        this.updateToolbar();
-    }
-
-    removeTabAt(index: number): void {
-        super.removeTabAt(index);
-        this.updateToolbar();
-    }
-
-    // ----------------------+
-    // End of customization. |
-    // ----------------------+
-
     protected onAfterAttach(msg: Message): void {
-        this.widgetTracker.currentChanged.connect(this.updateToolbar, this);
         if (this.toolbar) {
             if (this.toolbar.isAttached) {
                 Widget.detach(this.toolbar);
@@ -375,22 +342,22 @@ export class ToolbarAwareTabBar extends ScrollableTabBar {
         if (this.toolbar && this.toolbar.isAttached) {
             Widget.detach(this.toolbar);
         }
-        this.widgetTracker.currentChanged.disconnect(this.updateToolbar, this);
         super.onBeforeDetach(msg);
     }
 
+    protected onUpdateRequest(msg: Message): void {
+        super.onUpdateRequest(msg);
+        this.updateToolbar();
+    }
+
     protected updateToolbar(): void {
-        const { currentWidget } = this.widgetTracker;
-        if (this.toolbar && currentWidget) {
-            // If the active widget does not belong to the current tab-bar, do nothing.
-            if (this.titles.map(title => title.owner).some(owner => owner === currentWidget)) {
-                const items = this.tabBarToolbarRegistry.visibleItems(currentWidget);
-                this.toolbar.updateItems(...items);
-            } else {
-                // Otherwise, discard the state.
-                this.toolbar.updateItems(...[]);
-            }
+        if (!this.toolbar) {
+            return;
         }
+        const current = this.currentTitle;
+        const widget = current && current.owner || undefined;
+        const items = widget ? this.tabBarToolbarRegistry.visibleItems(widget) : [];
+        this.toolbar.updateItems(items, widget);
     }
 
     /**

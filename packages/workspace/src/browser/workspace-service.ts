@@ -20,12 +20,13 @@ import { FileSystem, FileStat } from '@theia/filesystem/lib/common';
 import { FileSystemWatcher, FileChangeEvent } from '@theia/filesystem/lib/browser/filesystem-watcher';
 import { WorkspaceServer } from '../common';
 import { WindowService } from '@theia/core/lib/browser/window/window-service';
-import { FrontendApplication, FrontendApplicationContribution } from '@theia/core/lib/browser';
+import { FrontendApplicationContribution } from '@theia/core/lib/browser';
 import { Deferred } from '@theia/core/lib/common/promise-util';
-import { ILogger, Disposable, DisposableCollection, Emitter, Event } from '@theia/core';
+import { ILogger, Disposable, DisposableCollection, Emitter, Event, MaybePromise } from '@theia/core';
 import { WorkspacePreferences } from './workspace-preferences';
 import * as jsoncparser from 'jsonc-parser';
 import * as Ajv from 'ajv';
+import { FrontendApplicationConfigProvider } from '@theia/core/lib/browser/frontend-application-config-provider';
 
 export const THEIA_EXT = 'theia-workspace';
 export const VSCODE_EXT = 'code-workspace';
@@ -64,11 +65,13 @@ export class WorkspaceService implements FrontendApplicationContribution {
     @inject(WorkspacePreferences)
     protected preferences: WorkspacePreferences;
 
+    protected applicationName = FrontendApplicationConfigProvider.get().applicationName;
+
     @postConstruct()
     protected async init(): Promise<void> {
-        const workspaceUri = await this.server.getMostRecentlyUsedWorkspace();
-        const workspaceFileStat = await this.toFileStat(workspaceUri);
-        await this.setWorkspace(workspaceFileStat);
+        const wpUriString = await this.getDefaultWorkspacePath();
+        const wpStat = await this.toFileStat(wpUriString);
+        await this.setWorkspace(wpStat);
 
         this.watcher.onFilesChanged(event => {
             if (this._workspace && FileChangeEvent.isAffected(event, new URI(this._workspace.uri))) {
@@ -81,6 +84,29 @@ export class WorkspaceService implements FrontendApplicationContribution {
                 this.updateWorkspace();
             }
         });
+    }
+
+    /**
+     * Get the path of the workspace to use initially.
+     */
+    protected getDefaultWorkspacePath(): MaybePromise<string | undefined> {
+        // Prefer the workspace path specified as the URL fragment, if present.
+        if (window.location.hash.length > 1) {
+            // Remove the leading #.
+            const wpPath = window.location.hash.substring(1);
+            return new URI().withPath(wpPath).withScheme('file').toString();
+        } else {
+            // Else, ask the server for its suggested workspace (usually the one
+            // specified on the CLI, or the most recent).
+            return this.server.getMostRecentlyUsedWorkspace();
+        }
+    }
+
+    /**
+     * Set the URL fragment to the given workspace path.
+     */
+    protected setURLFragment(workspacePath: string): void {
+        window.location.hash = workspacePath;
     }
 
     get roots(): Promise<FileStat[]> {
@@ -106,7 +132,11 @@ export class WorkspaceService implements FrontendApplicationContribution {
         this.toDisposeOnWorkspace.dispose();
         this._workspace = workspaceStat;
         if (this._workspace) {
-            this.toDisposeOnWorkspace.push(await this.watcher.watchFileChanges(new URI(this._workspace.uri)));
+            const uri = new URI(this._workspace.uri);
+            this.toDisposeOnWorkspace.push(await this.watcher.watchFileChanges(uri));
+            this.setURLFragment(uri.path.toString());
+        } else {
+            this.setURLFragment('');
         }
         this.updateTitle();
         await this.updateWorkspace();
@@ -168,26 +198,30 @@ export class WorkspaceService implements FrontendApplicationContribution {
         }
     }
 
-    protected updateTitle(): void {
+    protected formatTitle(title?: string): string {
+        const name = this.applicationName;
+        return title ? `${title} — ${name}` : name;
+    }
+
+    protected updateTitle() {
+        let title: string | undefined;
         if (this._workspace) {
             const uri = new URI(this._workspace.uri);
             const displayName = uri.displayName;
             if (!this._workspace.isDirectory &&
                 (displayName.endsWith(`.${THEIA_EXT}`) || displayName.endsWith(`.${VSCODE_EXT}`))) {
-                document.title = displayName.slice(0, displayName.lastIndexOf('.'));
+                title = displayName.slice(0, displayName.lastIndexOf('.'));
             } else {
-                document.title = displayName;
+                title = displayName;
             }
-        } else {
-            document.title = window.location.href;
         }
+        document.title = this.formatTitle(title);
     }
 
     /**
      * on unload, we set our workspace root as the last recently used on the backend.
-     * @param app
      */
-    onStop(app: FrontendApplication): void {
+    onStop(): void {
         this.server.setMostRecentlyUsedWorkspace(this._workspace ? this._workspace.uri : '');
     }
 
@@ -347,11 +381,13 @@ export class WorkspaceService implements FrontendApplicationContribution {
     }
 
     protected openWindow(uri: FileStat, options?: WorkspaceInput): void {
+        const workspacePath = new URI(uri.uri).path.toString();
+
         if (this.shouldPreserveWindow(options)) {
             this.reloadWindow();
         } else {
             try {
-                this.openNewWindow();
+                this.openNewWindow(workspacePath);
             } catch (error) {
                 // Fall back to reloading the current window in case the browser has blocked the new window
                 this._workspace = uri;
@@ -361,11 +397,20 @@ export class WorkspaceService implements FrontendApplicationContribution {
     }
 
     protected reloadWindow(): void {
+        // Set the new workspace path as the URL fragment.
+        if (this._workspace !== undefined) {
+            this.setURLFragment(new URI(this._workspace.uri).path.toString());
+        } else {
+            this.setURLFragment('');
+        }
+
         window.location.reload(true);
     }
 
-    protected openNewWindow(): void {
-        this.windowService.openNewWindow(window.location.href);
+    protected openNewWindow(workspacePath: string): void {
+        const url = new URL(window.location.href);
+        url.hash = workspacePath;
+        this.windowService.openNewWindow(url.toString());
     }
 
     protected shouldPreserveWindow(options?: WorkspaceInput): boolean {
@@ -407,7 +452,7 @@ export class WorkspaceService implements FrontendApplicationContribution {
             await this.fileSystem.createFile(uriStr);
         }
         let stat = await this.toFileStat(uriStr);
-        stat = await this.writeWorkspaceFile(stat, await this.roots);
+        stat = await this.writeWorkspaceFile(stat, this._roots);
         await this.server.setMostRecentlyUsedWorkspace(uriStr);
         await this.setWorkspace(stat);
     }

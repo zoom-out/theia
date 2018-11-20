@@ -329,3 +329,7 @@
 .git-tab-icon::before {
     content: "\f126"
 }
+
+.git-change-count {
+    float: right;
+}

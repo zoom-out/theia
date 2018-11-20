@@ -15,3 +15,4 @@
  ********************************************************************************/
 
 export * from './mock-preference-service';
+export * from './mock-preference-proxy';

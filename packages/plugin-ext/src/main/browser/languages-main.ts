@@ -13,6 +13,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
+
 import {
     LanguagesMain,
     SerializedLanguageConfiguration,
@@ -76,6 +77,7 @@ export class LanguagesMainImpl implements LanguagesMain {
                     return {
                         suggestions: result.completions,
                         incomplete: result.incomplete,
+                        // tslint:disable-next-line:no-any
                         dispose: () => this.proxy.$releaseCompletionItems(handle, (<any>result)._id)
                     };
                 }),
@@ -92,6 +94,18 @@ export class LanguagesMainImpl implements LanguagesMain {
         for (const language of getLanguages()) {
             if (this.matchLanguage(languageSelector, language)) {
                 disposable.push(monaco.languages.registerDefinitionProvider(language, definitionProvider));
+            }
+        }
+        this.disposables.set(handle, disposable);
+    }
+
+    $registeReferenceProvider(handle: number, selector: SerializedDocumentFilter[]): void {
+        const languageSelector = fromLanguageSelector(selector);
+        const referenceProvider = this.createReferenceProvider(handle, languageSelector);
+        const disposable = new DisposableCollection();
+        for (const language of getLanguages()) {
+            if (this.matchLanguage(languageSelector, language)) {
+                disposable.push(monaco.languages.registerReferenceProvider(language, referenceProvider));
             }
         }
         this.disposables.set(handle, disposable);
@@ -208,6 +222,7 @@ export class LanguagesMainImpl implements LanguagesMain {
         };
     }
 
+    // tslint:disable-next-line:no-any
     $emitCodeLensEvent(eventHandle: number, event?: any): void {
         const obj = this.disposables.get(eventHandle);
         if (obj instanceof Emitter) {
@@ -240,6 +255,31 @@ export class LanguagesMainImpl implements LanguagesMain {
                             range: result.range
                         };
                     }
+                });
+            }
+        };
+    }
+
+    protected createReferenceProvider(handle: number, selector: LanguageSelector | undefined): monaco.languages.ReferenceProvider {
+        return {
+            provideReferences: (model, position, context, token) => {
+                if (!this.matchModel(selector, MonacoModelIdentifier.fromModel(model))) {
+                    return undefined!;
+                }
+                return this.proxy.$provideReferences(handle, model.uri, position, context).then(result => {
+                    if (!result) {
+                        return undefined!;
+                    }
+
+                    if (Array.isArray(result)) {
+                        const references: monaco.languages.Location[] = [];
+                        for (const item of result) {
+                            references.push({ ...item, uri: monaco.Uri.revive(item.uri) });
+                        }
+                        return references;
+                    }
+
+                    return undefined!;
                 });
             }
         };

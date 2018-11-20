@@ -26,6 +26,7 @@ import { LogType } from './../../common/types';
 import { HostedPluginUriPostProcessor, HostedPluginUriPostProcessorSymbolName } from './hosted-plugin-uri-postprocessor';
 import { HostedPluginSupport } from './hosted-plugin';
 import { DebugConfiguration } from '../../common';
+import { environment } from '@theia/core';
 const processTree = require('ps-tree');
 
 export const HostedInstanceManager = Symbol('HostedInstanceManager');
@@ -143,7 +144,9 @@ export abstract class AbstractHostedInstanceManager implements HostedInstanceMan
 
     terminate(): void {
         if (this.isPluginRunnig) {
+            // tslint:disable-next-line:no-any
             processTree(this.hostedInstanceProcess.pid, (err: Error, children: Array<any>) => {
+                // tslint:disable-next-line:no-any
                 const args = ['-SIGTERM', this.hostedInstanceProcess.pid.toString()].concat(children.map((p: any) => p.PID));
                 cp.spawn('kill', args);
             });
@@ -232,7 +235,21 @@ export abstract class AbstractHostedInstanceManager implements HostedInstanceMan
     }
 
     protected async getStartCommand(port?: number, debugConfig?: DebugConfiguration): Promise<string[]> {
-        const command = ['yarn', 'theia', 'start'];
+
+        const processArguments = process.argv;
+        let command: string[];
+        if (environment.electron.is()) {
+            command = ['yarn', 'theia', 'start'];
+        } else {
+            command = processArguments.filter(arg => {
+                // remove --port= argument if set
+                if (arg.startsWith('--port=')) {
+                    return;
+                } else {
+                    return arg;
+                }
+            });
+        }
         if (process.env.HOSTED_PLUGIN_HOSTNAME) {
             command.push('--hostname=' + process.env.HOSTED_PLUGIN_HOSTNAME);
         }

@@ -161,6 +161,10 @@ button.secondary[disabled], .theia-button.secondary[disabled] {
     outline: none;
 }
 
+textarea {
+  font-family: var(--theia-ui-font-family);
+}
+
 /*-----------------------------------------------------------------------------
 | Import children style files
 |----------------------------------------------------------------------------*/
@@ -179,3 +183,4 @@ button.secondary[disabled], .theia-button.secondary[disabled] {
 @import './search-box.css';
 @import './ansi.css';
 @import './view-container.css';
+@import './notification.css';

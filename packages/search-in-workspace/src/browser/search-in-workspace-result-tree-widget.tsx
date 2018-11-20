@@ -133,6 +133,10 @@ export class SearchInWorkspaceResultTreeWidget extends TreeWidget {
         }));
     }
 
+    get fileNumber(): number {
+        return this.resultTree.size;
+    }
+
     set showReplaceButtons(srb: boolean) {
         this._showReplaceButtons = srb;
         this.update();
@@ -392,8 +396,10 @@ export class SearchInWorkspaceResultTreeWidget extends TreeWidget {
                         {node.path}
                     </span>
                 </div>
-                <span className={'result-number'}>
-                    {node.children.length.toString()}
+                <span className='notification-count-container'>
+                    <span className='notification-count'>
+                        {node.children.length.toString()}
+                    </span>
                 </span>
             </div>
         </div>;
