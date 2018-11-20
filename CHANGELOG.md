@@ -6,6 +6,7 @@
 - [core] `ctrl+alt+a` and `ctrl+alt+d` to switch tabs left/right
 - [core] added `theia.applicationName` to application `package.json` and improved window title
 - [cpp] Use `Option+Command+o` instead of `Option+o` on macOS for 'Switch Header/Source'
+- [electron] open markdown links in the OS default browser
 
 
 ## v0.3.16
