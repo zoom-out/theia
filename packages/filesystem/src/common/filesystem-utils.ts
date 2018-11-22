@@ -14,6 +14,8 @@
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
 
+import { FileStat } from './filesystem';
+import URI from '@theia/core/lib/common/uri';
 import { Path } from '@theia/core/lib/common';
 
 export namespace FileSystemUtils {
@@ -33,5 +35,17 @@ export namespace FileSystemUtils {
         }
 
         return resourcePath;
+    }
+
+    export function findVacantChildUri(parentUri: URI, parent: FileStat, name: string, ext: string = ''): URI {
+        const children = !parent.children ? [] : parent.children!.map(child => new URI(child.uri));
+
+        let index = 1;
+        let base = name + ext;
+        while (children.some(child => child.path.base === base)) {
+            index = index + 1;
+            base = name + '_' + index + ext;
+        }
+        return parentUri.resolve(base);
     }
 }
